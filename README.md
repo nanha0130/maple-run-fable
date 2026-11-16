@@ -1,4 +1,4 @@
-# MAPLE RUN · 紅葉ラン
+# MAPLE RUN
 
 **Play it: https://maple-run-fable.vercel.app** (desktop Chrome or Edge, Safari 26+)
 
@@ -18,12 +18,12 @@ P/Esc pause · M mute. Touch: swipe, tap to jump. On the title screen ←/→ pi
 
 ## What's in the run
 
-- **Barriers** (yellow/black): jump. **Gates** (red/white arm, 頭上注意): roll under.
+- **Barriers** (yellow/black): jump. **Gates** (red/white arm): roll under.
 - **Parked trains** (maroon): change track, or take a wooden **ramp** onto the roofs.
 - **Oncoming trains** (green, headlights, horn): they move toward you.
 - **Roof runs**: all three tracks blocked, two ramps up.
 - **Golden leaves** score 10 × multiplier. The multiplier rises every 1000 m.
-- **Power-ups:** 風 wind ride (fly above everything for 7 s) · 寄 leaf magnet · 倍 double score · 守 charm (absorbs one crash).
+- **Power-ups:** wind ride (fly above everything for 7 s) · leaf magnet · double score · charm (absorbs one crash).
 - Clip the side of a train and you stumble; the station master closes in for 7 s. Stumble again and he catches you.
 - Four biomes on an 840 m loop: maple tunnel, harvest paddies with torii, a timber station, a vermilion truss bridge.
 

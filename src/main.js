@@ -77,15 +77,22 @@ try {
   // Draw at most 60 times a second (a 120 Hz screen would double the GPU work for no gain), 15 while paused,
   // and shed resolution when the GPU cannot keep up. This is what keeps laptops and phones cool.
   if (!DEBUG || q.has('cap')) {
-    const dev = stage.app.graphicsDevice; let lastDraw = 0, slow = 0, lastTick = performance.now(), hz = 16.7, fast = false;
+    const dev = stage.app.graphicsDevice; let lastDraw = 0, slow = 0, ticks = 0, tickT = performance.now(), fast = false, ninety = 0;
     stage.app.autoRender = false;
     stage.app.on('update', (dt) => {
       const now = performance.now();
-      // Skip frames only on screens that are clearly faster than 60 Hz. On a 60 Hz screen every frame is drawn:
-      // a fixed 15.5 ms gate there drops a frame whenever the browser's timer jitters early, which shows as a stutter.
-      hz += ((now - lastTick) - hz) * 0.05; lastTick = now;
-      if (hz < 9.5) fast = true; else if (hz > 13) fast = false; // hysteresis: a 90 Hz screen (11.1 ms) must not flip between the two
-      const gap = paused ? 66 : fast ? 15.5 : 0;
+      // A 12 ms gate between draws: a 60 Hz screen passes every frame, a 120 Hz one every second frame (a steady 60).
+      // It must stay below 16 ms: when the GPU is behind, callbacks on a 120 Hz screen arrive ~16 ms after a draw and a
+      // 15.5 ms gate missed half of them, which showed as 16/24 ms judder. Drawing every callback there is no better:
+      // it saturates the GPU and the pacing goes uneven. Only a 90 Hz screen (11 ms) is let through ungated, and only
+      // if the screen never showed 100+ callbacks a second, so a loaded 120 Hz screen is not mistaken for one.
+      if (++ticks, now - tickT >= 1000) {
+        const rate = ticks * 1000 / (now - tickT);
+        if (rate >= 100) fast = true;
+        ninety = !document.hidden && rate > 84 && rate < 96 ? ninety + 1 : 0;
+        ticks = 0; tickT = now;
+      }
+      const gap = paused ? 66 : !fast && ninety >= 3 ? 0 : 12;
       if (now - lastDraw >= gap) { stage.app.renderNextFrame = true; lastDraw = now; }
       if (paused || document.hidden || state !== 'run' || R.s < 150) { slow = 0; return; } // judge only steady running, never loading hitches
       slow = dt > 1 / 33 ? slow + dt : Math.max(0, slow - dt * 0.5);

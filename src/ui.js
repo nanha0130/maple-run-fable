@@ -59,7 +59,7 @@ export function createUI(root, h) {
     <div class="kicker" id="over-k"></div><h2 id="over-h"></h2>
     <div class="big" id="over-score">0</div><div class="rec hidden" id="over-rec">NEW BEST</div>
     <div class="stats"><div>Distance<b id="over-dist">0 m</b></div><div>Leaves<b id="over-leaves">0</b></div><div>Best<b id="over-best">0</b></div></div>
-    <div class="btns"><button class="btn pri" id="retry">もう一度 RETRY</button><button class="btn sec" id="menu">RUNNERS</button></div>
+    <div class="btns"><button class="btn pri" id="retry">TRY AGAIN</button><button class="btn sec" id="menu">RUNNERS</button></div>
   </div></div>
   <div class="veil" id="make"><div class="panel wide" role="dialog" aria-modal="true" aria-labelledby="make-h">
     <button class="x" id="make-x" aria-label="Close"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15"/></svg></button>

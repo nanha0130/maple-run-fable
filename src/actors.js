@@ -19,9 +19,11 @@ export const CLIP = {
   wall: { name: 'gen_wall_1', at: 1.12 }, trip: { name: 'gen_trip_3', at: 0.85 },
   bar: { name: 'head_hit', at: 0 }, caught: { name: 'gen_caught_3', at: 0.3 },
 };
-const LIBRARY = ['running', 'run_jump', 'roll', 'hard_landing', 'knocked_down', 'fall_down', 'standing_idle', 'cheering', 'point_forward', 'head_hit', 'hit_front'];
+const LIBRARY = ['running', 'run_jump', 'roll', 'knocked_down', 'standing_idle', 'point_forward', 'head_hit'];
 const GENERATED = ['gen_sprint_1', 'gen_leap_3', 'gen_hover_2', 'gen_dodgeL_1', 'gen_dodgeR_1', 'gen_wall_1', 'gen_trip_3', 'gen_caught_3'];
 const CORE = ['standing_idle', 'running', RUN_CLIP];
+// what a run needs from its first second; crash and catch reactions can still be on their way
+const MOVES = ['gen_leap_3', 'gen_dodgeL_1', 'gen_dodgeR_1', 'roll', 'gen_hover_2', 'run_jump'];
 
 // Library clips face -Z; text-to-motion clips face +Z. Turn root + pelvis of the generated ones once at load,
 // so every clip shares one facing and crossfades between the two families stay clean.
@@ -53,6 +55,7 @@ export class Cast {
     return p;
   }
   loadCoreClips() { return Promise.all(CORE.map((k) => this._clip(k))); }
+  loadMoveClips() { return Promise.all(MOVES.map((k) => this._clip(k))); }
   loadAllClips() { return Promise.all([...LIBRARY, ...GENERATED].map((k) => this._clip(k))); }
 
   /** Swap in the player's own character ('mine'): a .vsplat Blob, or null to remove it. */

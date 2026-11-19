@@ -242,8 +242,11 @@ export function canvasTexture(device, canvas, opts = {}) {
  * o: { map, color, vc, gloss, metal, emissive, emissiveMap, emissiveVc, emissiveIntensity, alphaTest, twoSided,
  *      blend:'add'|'alpha', opacity, noFog, unlit, noShadow, depthWrite }
  */
+/** Every material made by mat(), so the boot screen can compile their shaders before the first run. */
+export const MATERIALS = [];
 export function mat(o = {}) {
   const m = new pc.StandardMaterial();
+  MATERIALS.push(m);
   const c = o.color || [1, 1, 1];
   m.diffuse.set(c[0], c[1], c[2]);
   if (o.map) m.diffuseMap = o.map;
@@ -270,4 +273,21 @@ export function mat(o = {}) {
   m._noShadow = !!(o.noShadow || o.blend || o.unlit);
   m.update();
   return m;
+}
+
+/**
+ * Draw one tiny mesh with every material for a few frames. A GPU pipeline is compiled the first time a material
+ * is drawn, which stalls the frame for 100-300 ms; doing it behind the loading screen keeps that out of the run.
+ */
+export async function warmShaders(app, device, parent, frames = 3) {
+  const e = new pc.Entity('warm'), g = new Geo();
+  g.box(0, 0, 0, 0.01, 0.01, 0.01, [1, 1, 1]);
+  const plain = g.build(device, false), tangent = g.build(device, true);
+  const mis = MATERIALS.map((m) => { const mi = new pc.MeshInstance(m.normalMap ? tangent : plain, m); mi.castShadow = !m._noShadow; return mi; });
+  e.addComponent('render', { meshInstances: mis, castShadows: true, receiveShadows: true });
+  for (const mi of mis) if (mi.material._noShadow) mi.castShadow = false;
+  parent.addChild(e); e.setLocalPosition(0, 0, -3);
+  const guard = new Promise((r) => setTimeout(r, 2500)); // a hidden tab draws no frames: never hold the boot for it
+  for (let i = 0; i < frames; i++) await Promise.race([new Promise((r) => app.once('frameend', r)), guard]);
+  e.destroy(); plain.destroy(); tangent.destroy();
 }

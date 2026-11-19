@@ -69,7 +69,6 @@ export async function createProps(device, mats, tx) {
   };
   const destPrim = by(['dest'])[0];
   if (destPrim) for (let i = 0; i < destPrim.uv.length; i += 2) destPrim.uv[i + 1] = 0.5 + destPrim.uv[i + 1] * 0.25;
-  const bodyNames = ['paint', 'paint_lower', 'dielectric', 'metal', 'decal'];
   // windows: dark reflective glass with a little cabin light, not a flat lit panel
   const WINDOW = lin([0.1, 0.12, 0.15]);
   const asGlass = { glass: () => WINDOW };
@@ -85,7 +84,11 @@ export async function createProps(device, mats, tx) {
   const glassMesh = mergePrims(device, by(['glass']), asGlass);
   const headMesh = mergePrims(device, by(['headlight']));
   const destMesh = destPrim ? mergePrims(device, [destPrim]) : null;
-  const bodies = { maroon: mergePrims(device, by(bodyNames)), green: mergePrims(device, by(bodyNames), greenify) };
+  // A car is ~33k triangles and a dozen are on screen at once, so it is split: the painted shell (4k) is what casts
+  // the shadow and what distant cars are drawn with; trim, bogies and roof gear are added only near the runner.
+  const shellNames = ['paint', 'paint_lower', 'decal'], detailNames = ['dielectric', 'metal'];
+  const shells = { maroon: mergePrims(device, by(shellNames)), green: mergePrims(device, by(shellNames), greenify) };
+  const detailMesh = mergePrims(device, by(detailNames));
   // roof kit: a folded pantograph (low enough to run over) and air-conditioning housings, so the roofs you run on are not bare
   const kit = new Geo();
   {
@@ -160,13 +163,15 @@ export async function createProps(device, mats, tx) {
   P.car = (livery = 'maroon', lit = false) => {
     const e = new pc.Entity('car');
     const mis = [
-      new pc.MeshInstance(bodies[livery], tm.body), new pc.MeshInstance(glassMesh, tm.glass),
+      new pc.MeshInstance(shells[livery], tm.body), new pc.MeshInstance(glassMesh, tm.glass),
       new pc.MeshInstance(lampMesh, tm.lamps), new pc.MeshInstance(headMesh, lit ? tm.headOn : tm.head),
     ];
     if (destMesh) mis.push(new pc.MeshInstance(destMesh, tm.dest));
-    mis.push(new pc.MeshInstance(kitMesh, mats.shiny));
+    const detail = [new pc.MeshInstance(detailMesh, tm.body), new pc.MeshInstance(kitMesh, mats.shiny)];
+    mis.push(...detail);
     e.addComponent('render', { meshInstances: mis, castShadows: true, receiveShadows: true });
-    mis[2].castShadow = false; mis[3].castShadow = false;
+    for (let i = 1; i < mis.length; i++) mis[i].castShadow = false; // the shell alone throws the shadow
+    e.detail = detail;
     return e;
   };
 

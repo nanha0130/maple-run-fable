@@ -8,7 +8,7 @@ import { Leaves, blobShadow } from './fx.js';
 import { Sound } from './audio.js';
 import { createUI } from './ui.js';
 import { LANES, TRAIN_TOP } from './world.js';
-import { clamp, lerp, damp, smooth } from './gfx.js';
+import { clamp, lerp, damp, smooth, warmShaders } from './gfx.js';
 
 const q = new URLSearchParams(location.search);
 const DEBUG = q.has('debug'), AUTO = q.has('auto');
@@ -50,30 +50,43 @@ resetRunner();
 // ------------------------------------------------------------------ boot
 try {
   ui.boot('Laying the track…');
+  performance.mark('b0');
   stage = await createStage(canvas, { backend: q.get('backend') || undefined, nopost: q.has('nopost'), lowfx: mobile || q.has('lowfx'), dpr: +q.get('dpr') || 1.5 });
+  performance.mark('b1');
   props = await createProps(stage.device, stage.mats, stage.tx);
   stage.mats.blink = props.blink;
+  performance.mark('b2');
   course = new Course(stage, props);
   fx = new Leaves(stage, { ambient: mobile ? 140 : 260 });
   heroShadow = blobShadow(stage); chaserShadow = blobShadow(stage);
   stage.update(0, 99);
+  performance.mark('b3');
   ui.boot('Waking the runners…');
   cast = new Cast(stage.scene);
   await cast.loadCoreClips();
+  cast.loadMoveClips().catch(() => {}); // next in line, ahead of the crash reactions
+  performance.mark('b4');
   const mine = await loadRunner(); // the player's own PINOC character, kept in this browser
   if (mine?.vsplat) { mineBlob = mine.vsplat; cast.setCustom(mine.vsplat); ui.mine(mine.photo); } else if (heroId === 'mine') heroId = 'beat';
   [chaser] = await Promise.all([cast.actor('conductor'), select(heroId, true)]);
+  await warmShaders(stage.app, stage.device, stage.cam);
+  performance.mark('b5');
   chaser.play('standing_idle', { fade: 0 });
   cast.loadAllClips();
   stage.app.on('update', frame);
   // Draw at most 60 times a second (a 120 Hz screen would double the GPU work for no gain), 15 while paused,
   // and shed resolution when the GPU cannot keep up. This is what keeps laptops and phones cool.
   if (!DEBUG || q.has('cap')) {
-    const dev = stage.app.graphicsDevice; let lastDraw = 0, slow = 0;
+    const dev = stage.app.graphicsDevice; let lastDraw = 0, slow = 0, lastTick = performance.now(), hz = 16.7, fast = false;
     stage.app.autoRender = false;
     stage.app.on('update', (dt) => {
       const now = performance.now();
-      if (now - lastDraw >= (paused ? 66 : 15.5)) { stage.app.renderNextFrame = true; lastDraw = now; }
+      // Skip frames only on screens that are clearly faster than 60 Hz. On a 60 Hz screen every frame is drawn:
+      // a fixed 15.5 ms gate there drops a frame whenever the browser's timer jitters early, which shows as a stutter.
+      hz += ((now - lastTick) - hz) * 0.05; lastTick = now;
+      if (hz < 9.5) fast = true; else if (hz > 13) fast = false; // hysteresis: a 90 Hz screen (11.1 ms) must not flip between the two
+      const gap = paused ? 66 : fast ? 15.5 : 0;
+      if (now - lastDraw >= gap) { stage.app.renderNextFrame = true; lastDraw = now; }
       if (paused || document.hidden || state !== 'run' || R.s < 150) { slow = 0; return; } // judge only steady running, never loading hitches
       slow = dt > 1 / 33 ? slow + dt : Math.max(0, slow - dt * 0.5);
       if (slow > 3 && dev.maxPixelRatio > 1) { dev.maxPixelRatio = Math.max(1, dev.maxPixelRatio - 0.25); slow = 0; }
@@ -143,7 +156,8 @@ async function start() {
   if ((state !== 'title' && state !== 'over') || !hero || starting) return;
   snd.unlock();
   starting = true;
-  try { await cast.loadAllClips(); } catch (e) { console.error(e); return; } finally { starting = false; }
+  cast.loadAllClips().catch((e) => console.error(e));
+  try { await cast.loadMoveClips(); } catch (e) { console.error(e); return; } finally { starting = false; }
   if (state !== 'title' && state !== 'over') return;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   const wasTitle = state === 'title';

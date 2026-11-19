@@ -3,6 +3,7 @@ import { rnd, clamp, lerp } from './gfx.js';
 import { LANES, TRAIN_TOP } from './world.js';
 
 export const CAR = 15;
+const DETAIL_AHEAD = 150; // metres: beyond this a car is drawn as its painted shell only
 export const HOVER_Y = 5.5;
 export const POWERS = ['wind', 'magnet', 'x2', 'shield'];
 export const speedAt = (dist) => 13.5 + Math.min(13.5, dist * 0.0042);
@@ -218,6 +219,11 @@ export class Course {
           if (!t.horn && t.s - runnerS < Math.max(60, sp * 2.6)) { t.horn = true; onHorn && onHorn(t); }
         }
         if (t.flare) { const k = 0.8 + 0.2 * Math.sin(time * 40); t.flare.setLocalScale(k, k, 1); }
+      }
+      // trim, bogies and roof gear only on the cars near the runner (see props.car)
+      for (let i = 0; i < t.ents.length; i++) {
+        const near = t.s + i * CAR - runnerS < DETAIL_AHEAD, e = t.ents[i];
+        if (e.near !== near) { e.near = near; for (const mi of e.detail) mi.visible = near; }
       }
     }
     // despawn behind

@@ -61,21 +61,22 @@ export function createUI(root, h) {
     <div class="stats"><div>Distance<b id="over-dist">0 m</b></div><div>Leaves<b id="over-leaves">0</b></div><div>Best<b id="over-best">0</b></div></div>
     <div class="btns"><button class="btn pri" id="retry">TRY AGAIN</button><button class="btn sec" id="menu">RUNNERS</button></div>
   </div></div>
-  <div class="veil" id="make"><div class="panel wide" role="dialog" aria-modal="true" aria-labelledby="make-h">
+  <div class="veil" id="make"><div class="panel wide" role="dialog" aria-modal="true" aria-label="Run as yourself">
     <button class="x" id="make-x" aria-label="Close"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15"/></svg></button>
-    <h2 id="make-h">Run as yourself</h2>
     <form id="make-form" autocomplete="off">
-      <p class="lede">Turn one photo into your own 3D runner.</p>
-      <div class="resume" id="make-resume" hidden><b>Your runner is already paid for.</b> Enter the same API key to pick it up at no extra cost. <button type="button" id="make-discard">Discard it and start over</button></div>
       <label class="drop" id="make-drop"><input type="file" class="vh" id="make-file" accept="image/png,image/jpeg,image/webp">
-        <img id="make-prev" alt="" hidden><span id="make-drop-t"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V5M7.5 9.5L12 5l4.5 4.5M5 19h14"/></svg><b>Choose a photo</b><small>One person, full body, facing the camera</small></span></label>
-      <label class="field"><span>Viggle API key <a href="${pinoc.KEYS_URL}" target="_blank" rel="noopener">Get a free key</a></span>
-        <input type="password" id="make-key" placeholder="Paste your key" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
-      <div class="row"><label class="check"><input type="checkbox" id="make-keep"> Remember on this device</label><span class="bal" id="make-bal"></span></div>
-      <p class="err" id="make-err" role="alert" hidden></p>
-      <button class="btn pri" id="make-go" type="submit" disabled>Create runner</button>
-      <p class="fine" id="make-cost">${pinoc.COST} credits ($${(pinoc.COST / 100).toFixed(2)}) from your own Viggle account. Your key stays in this browser.</p>
-      <p class="alt"><label><input type="file" class="vh" id="make-vsplat" accept=".vsplat"><u>Load a .vsplat instead</u></label><button type="button" id="make-forget" hidden>Forget my key</button><button type="button" id="make-remove" hidden>Remove my runner</button></p>
+        <img id="make-prev" alt="" hidden><span id="make-drop-t"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><b>Add a photo</b><small>One person, full body</small></span></label>
+      <div class="side">
+        <h2 id="make-h">Run as yourself</h2>
+        <p class="lede">One photo becomes your 3D runner.</p>
+        <div class="resume" id="make-resume" hidden><b>Your runner is already paid for.</b> Enter the same key to pick it up at no extra cost. <button type="button" id="make-discard">Discard it and start over</button></div>
+        <div class="field"><input type="password" id="make-key" aria-label="Viggle API key" placeholder="Viggle API key" spellcheck="false" autocomplete="off" autocapitalize="off"><a href="${pinoc.KEYS_URL}" target="_blank" rel="noopener">Get a key</a></div>
+        <div class="row"><label class="check"><input type="checkbox" id="make-keep"> Remember on this device</label><span class="bal" id="make-bal"></span></div>
+        <p class="err" id="make-err" role="alert" hidden></p>
+        <button class="btn pri" id="make-go" type="submit" disabled>Create runner</button>
+        <p class="fine" id="make-cost">${pinoc.COST} credits, billed to your own Viggle account.</p>
+      </div>
+      <p class="alt"><label><input type="file" class="vh" id="make-vsplat" accept=".vsplat"><u>Load a .vsplat</u></label><button type="button" id="make-forget" hidden>Forget my key</button><button type="button" id="make-remove" hidden>Remove my runner</button></p>
     </form>
     <div id="make-busy" hidden>
       ${leafSvg}
@@ -104,7 +105,7 @@ export function createUI(root, h) {
   /** The form has two modes: make a new runner, or pick up one that is already paid for. */
   function ready() {
     const p = pinoc.pending(), k = mk.key.value.trim();
-    mk.resume.hidden = !p; mk.drop.hidden = mk.cost.hidden = !!p;
+    mk.resume.hidden = !p; mk.drop.hidden = mk.cost.hidden = !!p; mk.form.classList.toggle('solo', !!p);
     mk.go.textContent = p ? 'Pick up my runner' : 'Create runner';
     mk.go.disabled = p ? !k : !(photo && k);
     mk.forget.hidden = !pinoc.getKey(); mk.remove.hidden = !hasMine;
@@ -119,7 +120,7 @@ export function createUI(root, h) {
     const k = mk.key.value.trim();
     if (!k) { mk.bal.textContent = ''; return; }
     balT = setTimeout(async () => {
-      try { const b = await pinoc.balance(k); if (mk.key.value.trim() !== k) return; mk.bal.textContent = `${Math.floor(b)} credits` + (b < pinoc.COST && !pinoc.pending() ? ` · need ${pinoc.COST}` : ' available'); }
+      try { const b = await pinoc.balance(k); if (mk.key.value.trim() !== k) return; mk.bal.textContent = `${Math.floor(b)} credits` + (b < pinoc.COST && !pinoc.pending() ? ` · need ${pinoc.COST}` : ''); }
       catch (e) { if (mk.key.value.trim() === k) mk.bal.textContent = e.message; }
     }, 500);
   }

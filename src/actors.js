@@ -1,6 +1,7 @@
 // PINOC Gaussian-splat characters and the motion clips that drive them.
 import * as pc from 'playcanvas';
 import { Character, Animation } from '@viggle/splat-engine';
+import { solidCharacter } from './splat-opacity.js';
 
 export const ROSTER = [
   { id: 'beat', name: 'BEAT', jp: 'ビート', tag: 'Streetwear sprinter', portrait: './portraits/beat.jpg' },
@@ -69,7 +70,7 @@ export class Cast {
   async actor(id) {
     if (this.loaded.has(id)) return this.loaded.get(id);
     if (id === 'mine' && !this.customUrl) throw new Error('no custom runner');
-    const p = Character.load(this.scene, id === 'mine' ? this.customUrl : `./characters/${id}.vsplat`, { name: id }).then((ch) => new Actor(ch, this));
+    const p = Character.load(this.scene, id === 'mine' ? this.customUrl : `./characters/${id}.vsplat`, { name: id }).then((ch) => { solidCharacter(ch); return new Actor(ch, this); });
     this.loaded.set(id, p);
     p.catch(() => this.loaded.delete(id)); // a failed download can be retried
     return p;

@@ -29,6 +29,10 @@ export function biomeOf(k) {
   return CYCLE[(k - 1) % CYCLE.length];
 }
 export const biomeAt = (s) => biomeOf(Math.floor(s / CHUNK));
+// How much direct sun reaches the runner on each kind of stretch (the splat characters are lit apart from the scene
+// and take no shadows from it, so their light has to follow where they are).
+const SUNLIT = { forest: 0, station: 0.15, paddy: 1, bridge: 0.75 };
+export const sunAt = (s) => (SUNLIT[biomeAt(s - 12)] + SUNLIT[biomeAt(s)] * 2 + SUNLIT[biomeAt(s + 12)]) / 4;
 
 const PROFILES = {
   forest: [[5.4, 0], [6.6, -0.5], [9, 0.5], [14, 1.8], [24, 4], [45, 8], [120, 17]],
@@ -711,6 +715,41 @@ function bench(G, x, y, z, ry, len = 2.2) {
   });
 }
 
+/** Red pillar post box, its slot facing the track. */
+function postbox(G, x, y, z, side) {
+  const red = hex('#b3261c');
+  G.flat.tube([x, y, z], [x, y + 0.1, z], 0.3, 0.3, 12, [0.16, 0.15, 0.15], { cap: true });
+  G.shiny.tube([x, y + 0.1, z], [x, y + 1.12, z], 0.25, 0.25, 12, red);
+  G.shiny.tube([x, y + 1.12, z], [x, y + 1.2, z], 0.29, 0.27, 12, shade(red, 0.85));
+  G.shiny.blob(x, y + 1.2, z, 0.27, 0.12, 0.27, red, 12, 5);
+  G.flat.box(x - side * 0.245, y + 0.9, z, 0.03, 0.05, 0.26, [0.05, 0.05, 0.05]);
+  plate(G.deco, x - side * 0.262, y + 0.62, z, 0.2, 0.2, DUV('post'), -side * 90);
+}
+/** A trunk, a couple of crates and a milk churn waiting for the next train. */
+function luggage(G, r, x, y, z, side) {
+  const w0 = r.range(0.7, 0.85);
+  G.wood.box(x, y + 0.24, z, 0.56, 0.48, w0, shade(TIMBER, 1.25), { uv: 0.7, bottom: false });
+  G.wood.box(x + r.range(-0.05, 0.05), y + 0.66, z + r.range(-0.08, 0.08), 0.46, 0.36, 0.58, shade(TIMBER, 1.05), { uv: 0.7, bottom: false });
+  for (const o of [-0.2, 0.2]) G.flat.box(x - side * 0.285, y + 0.24, z + o * w0, 0.012, 0.48, 0.05, [0.12, 0.11, 0.1]);
+  G.flat.box(x - side * 0.1, y + 0.2, z + w0 / 2 + 0.42, 0.42, 0.4, 0.62, hex('#6b4a2e'), { bottom: false, top: hex('#7a5636') }); // leather trunk
+  for (const o of [-0.18, 0.18]) G.flat.box(x - side * 0.1, y + 0.2, z + w0 / 2 + 0.42 + o, 0.44, 0.42, 0.04, [0.2, 0.14, 0.09], { bottom: false });
+  const cz = z - w0 / 2 - 0.36, steel = [0.62, 0.64, 0.66];
+  G.shiny.tube([x, y, cz], [x, y + 0.5, cz], 0.19, 0.19, 10, steel);
+  G.shiny.tube([x, y + 0.5, cz], [x, y + 0.62, cz], 0.19, 0.11, 10, steel);
+  G.shiny.tube([x, y + 0.62, cz], [x, y + 0.7, cz], 0.11, 0.13, 10, shade(steel, 0.85), { cap: true });
+}
+/** Fire point against the fence: red cabinet, lamp, a pair of buckets. */
+function hydrant(G, x, y, z, side) {
+  const red = hex('#b3261c');
+  G.flat.box(x, y + 0.6, z, 0.1, 1.2, 0.1, [0.13, 0.13, 0.14], { bottom: false });
+  G.shiny.box(x - side * 0.1, y + 1.2, z, 0.24, 0.62, 0.5, red);
+  G.flat.box(x - side * 0.225, y + 1.2, z, 0.012, 0.3, 0.3, [0.93, 0.9, 0.82]);
+  G.lamp.blob(x - side * 0.1, y + 1.6, z, 0.07, 0.08, 0.07, [1, 0.25, 0.15], 8, 4);
+  for (const o of [-0.42, 0.42]) {
+    G.shiny.tube([x - side * 0.12, y, z + o], [x - side * 0.12, y + 0.3, z + o], 0.12, 0.16, 10, red);
+    G.flat.tube([x - side * 0.12, y + 0.28, z + o], [x - side * 0.12, y + 0.3, z + o], 0.15, 0.15, 10, [0.1, 0.1, 0.1], { cap: true });
+  }
+}
 function planter(G, r, x, y, z, len = 1.3) {
   G.wood.box(x, y + 0.22, z, 0.5, 0.44, len, shade(TIMBER, 0.9), { uv: 0.8, bottom: false });
   G.flat.box(x, y + 0.43, z, 0.4, 0.04, len - 0.1, [0.2, 0.15, 0.1], { bottom: false });
@@ -831,13 +870,19 @@ function station(G, r, k) {
       G.flat.tube([lx, RY - 0.86, -s], [lx, RY - 0.66, -s], 0.29, 0.045, 10, [0.9, 0.88, 0.8]);
       G.lamp.blob(lx, RY - 0.86, -s, 0.11, 0.13, 0.11, [1, 0.8, 0.46], 8, 5);
       // hanging name board across the platform, readable as you run in; platform number on the first frame
-      if (fi % 2 === 1) {
+      if (fi === 3) { // one name board per platform per chunk: a real platform has two or three, not one in every bay
         const hx = side * 7.75, hy = RY - 0.78;
         G.wood.box(hx, hy, -s + 0.4, 2.5, 0.72, 0.06, TIMBER_D, { uv: 1.2 });
         for (const o of [-1.05, 1.05]) G.flat.box(hx + o, hy + 0.5, -s + 0.4, 0.03, 0.34, 0.03, iron);
         plate(G.sign, hx, hy, -s + 0.44, 2.36, 0.59, SIGN_NAME);
         plate(G.sign, hx, hy, -s + 0.36, 2.36, 0.59, SIGN_NAME, 180);
-      } else if (fi === 0 || fi % 4 === 0) {
+      } else if (fi === 5 && side > 0) { // way-out sign
+        const hx = side * 7.75, hy = RY - 0.7;
+        G.flat.box(hx, hy, -s + 0.4, 1.4, 0.74, 0.06, iron);
+        for (const o of [-0.5, 0.5]) G.flat.box(hx + o, hy + 0.5, -s + 0.4, 0.03, 0.3, 0.03, iron);
+        plate(G.deco, hx, hy, -s + 0.44, 1.3, 0.65, DUV('exit'));
+        plate(G.deco, hx, hy, -s + 0.36, 1.3, 0.65, DUV('exit'), 180);
+      } else if (fi === 1) {
         const hx = side * 5.75, hy = RY - 0.72;
         G.flat.box(hx, hy, -s + 0.4, 0.6, 0.6, 0.06, iron);
         G.flat.box(hx, hy + 0.42, -s + 0.4, 0.03, 0.26, 0.03, iron);
@@ -874,12 +919,16 @@ function station(G, r, k) {
     // name boards on their own legs facing the track, benches, planters
     let bi = 0;
     for (let s = cA + 2.5; s < cB; s += 10, bi++) {
-      const bx = side * 8.45, by = PH + 2.15, hwd = 1.5, hh = 0.42;
-      G.wood.box(side * 8.56, by, -s, 0.08, hh * 2 + 0.18, hwd * 2 + 0.18, TIMBER_D, { uv: 1.2 });
-      for (const o of [-hwd - 0.02, hwd + 0.02]) G.wood.box(side * 8.56, PH + 1.4, -s + o, 0.1, 2.8, 0.1, TIMBER_D, { uv: 1.2, bottom: false });
-      G.wood.box(side * 8.56, by + hh + 0.2, -s, 0.34, 0.07, hwd * 2 + 0.5, TIMBER_D, { uv: 1.2 });
-      if (side > 0) G.sign.quad([bx, by - hh, -s - hwd], [bx, by - hh, -s + hwd], [bx, by + hh, -s + hwd], [bx, by + hh, -s - hwd], [1, 1, 1], SIGN_NAME, [-1, 0, 0]);
-      else G.sign.quad([bx, by - hh, -s + hwd], [bx, by - hh, -s - hwd], [bx, by + hh, -s - hwd], [bx, by + hh, -s + hwd], [1, 1, 1], SIGN_NAME, [1, 0, 0]);
+      if (bi === (first ? 2 : last ? 0 : 3)) { // one per chunk, well away from the hanging board
+        const bx = side * 8.45, by = PH + 2.15, hwd = 1.5, hh = 0.42;
+        G.wood.box(side * 8.56, by, -s, 0.08, hh * 2 + 0.18, hwd * 2 + 0.18, TIMBER_D, { uv: 1.2 });
+        for (const o of [-hwd - 0.02, hwd + 0.02]) G.wood.box(side * 8.56, PH + 1.4, -s + o, 0.1, 2.8, 0.1, TIMBER_D, { uv: 1.2, bottom: false });
+        G.wood.box(side * 8.56, by + hh + 0.2, -s, 0.34, 0.07, hwd * 2 + 0.5, TIMBER_D, { uv: 1.2 });
+        if (side > 0) G.sign.quad([bx, by - hh, -s - hwd], [bx, by - hh, -s + hwd], [bx, by + hh, -s + hwd], [bx, by + hh, -s - hwd], [1, 1, 1], SIGN_NAME, [-1, 0, 0]);
+        else G.sign.quad([bx, by - hh, -s + hwd], [bx, by - hh, -s - hwd], [bx, by + hh, -s - hwd], [bx, by + hh, -s + hwd], [1, 1, 1], SIGN_NAME, [1, 0, 0]);
+      } else if (bi === 0) postbox(G, side * 9.55, PH, -s, side);
+      else if (bi === 1) { if (side > 0 || Math.abs(s - hs) > hw / 2 + 1) hydrant(G, side * 9.86, PH, -s, side); }
+      else if (bi === 2) luggage(G, r, side * 9.5, PH, -s, side);
       bench(G, side * 9.5, PH, -s - 4, -side * 90);
       if (side > 0 || Math.abs(s + 7 - hs) > hw / 2 + 1) planter(G, r, side * 9.75, PH, -s - 7);
     }

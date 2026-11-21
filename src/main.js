@@ -7,7 +7,7 @@ import { loadRunner } from './pinoc.js';
 import { Leaves, blobShadow } from './fx.js';
 import { Sound } from './audio.js';
 import { createUI } from './ui.js';
-import { LANES, TRAIN_TOP } from './world.js';
+import { LANES, TRAIN_TOP, sunAt } from './world.js';
 import { clamp, lerp, damp, smooth, warmShaders } from './gfx.js';
 
 const q = new URLSearchParams(location.search);
@@ -17,6 +17,7 @@ const snd = new Sound();
 snd.silent = DEBUG && !q.has('sound');
 let state = 'boot'; // boot | title | run | dead | over
 let paused = false, starting = false;
+let sunlit = 0.15; // how much sun the characters are lit with, 0..1 (follows the stretch of line)
 let mineBlob = null, queuedRunner; // the player's own runner (.vsplat Blob), and one that arrived mid-run
 
 const ui = createUI(document.getElementById('ui'), {
@@ -146,7 +147,7 @@ async function select(id, silent) {
 
 function toTitle() {
   state = 'title'; paused = false; stage.app.timeScale = 1;
-  resetRunner();
+  resetRunner(); sunlit = sunAt(0);
   course.reset(1);
   stage.update(0, 99);
   Object.assign(C, { gap: 5.5, x: -5.7, y: PLATFORM_Y, mode: 'wait', t: 0 });
@@ -169,7 +170,7 @@ async function start() {
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   const wasTitle = state === 'title';
   state = 'run'; paused = false; stage.app.timeScale = 1;
-  resetRunner();
+  resetRunner(); sunlit = sunAt(0);
   course.reset(runSeed || (Date.now() & 0xffff) + 1);
   stage.update(0, 99);
   R.speed = 5;
@@ -467,6 +468,9 @@ function frame(dtRaw) {
   const dt = Math.min(dtRaw, 0.05);
   if (paused) return;
   time += dt; stage.time = time;
+  // characters: full sun on the paddies and the bridge, shade under the maples and beside the station
+  sunlit = damp(sunlit, sunAt(R.s), 2.2, dt);
+  stage.splatSun.intensity = lerp(0.42, 0.78, sunlit); stage.splatSky.intensity = lerp(0.3, 0.4, sunlit);
   let scroll = 0;
 
   if (state === 'run') {

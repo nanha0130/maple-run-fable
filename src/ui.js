@@ -68,7 +68,7 @@ export function createUI(root, h) {
         <img id="make-prev" alt="" hidden><span id="make-drop-t"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><b>Add a photo</b><small>One person, full body</small></span></label>
       <div class="side">
         <h2 id="make-h">Run as yourself</h2>
-        <p class="lede">One photo becomes your 3D runner. New Viggle accounts get <b>100 free credits</b>, enough for 3 runners.</p>
+        <p class="lede">One photo becomes your 3D runner. New Viggle accounts get <b>100 free credits</b>.</p>
         <div class="resume" id="make-resume" hidden><b>Your runner is already paid for.</b> Enter the same key to pick it up at no extra cost. <button type="button" id="make-discard">Discard it and start over</button></div>
         <div class="field"><input type="password" id="make-key" aria-label="Viggle API key" placeholder="Viggle API key" spellcheck="false" autocomplete="off" autocapitalize="off"><a href="${pinoc.KEYS_URL}" target="_blank" rel="noopener">Get a free key</a></div>
         <div class="row"><label class="check"><input type="checkbox" id="make-keep"> Remember on this device</label><span class="bal" id="make-bal"></span></div>

@@ -150,10 +150,11 @@ html,body{margin:0;height:100%;background:#1a0f0a;overflow:hidden;font-family:va
 .panel.wide h2{margin:0;padding-right:30px;font:800 25px/1.15 var(--serif);letter-spacing:.01em}
 .panel .lede{margin:6px 0 0;font-size:13.5px;line-height:1.5;color:rgba(29,21,18,.6)}
 .field{position:relative;margin-top:auto;padding-top:18px}
-.field input{width:100%;box-sizing:border-box;padding:12px 92px 12px 14px;border:1px solid rgba(29,21,18,.2);border-radius:10px;background:#fff;color:var(--ink);font:500 16px/1.2 ui-monospace,Menlo,monospace;user-select:text;-webkit-user-select:text;transition:border-color .15s,box-shadow .15s}
+.field input{width:100%;box-sizing:border-box;padding:12px 116px 12px 14px;border:1px solid rgba(29,21,18,.2);border-radius:10px;background:#fff;color:var(--ink);font:500 16px/1.2 ui-monospace,Menlo,monospace;user-select:text;-webkit-user-select:text;transition:border-color .15s,box-shadow .15s}
 .field input::placeholder{font-family:var(--sans);font-size:14.5px;color:rgba(29,21,18,.58)}
 .field input:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 3px rgba(29,21,18,.08)}
-.field a{position:absolute;right:6px;bottom:8px;padding:8px 9px;border-radius:7px;font:600 12.5px/1 var(--sans);color:rgba(29,21,18,.62);text-decoration:none}
+.field a{position:absolute;right:6px;bottom:8px;padding:8px 9px;border-radius:7px;font:700 12.5px/1 var(--sans);color:var(--vermilion);text-decoration:none}
+.panel .lede b{color:var(--ink);font-weight:700}
 .field a:hover{color:var(--ink);background:rgba(29,21,18,.06)}
 #make .row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:9px;font-size:12.5px;color:rgba(29,21,18,.58)}
 .check{display:flex;align-items:center;gap:7px;cursor:pointer}

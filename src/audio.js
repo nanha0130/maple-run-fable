@@ -1,5 +1,7 @@
 // All sound is synthesised: koto-like plucks over taiko on a yo pentatonic scale, wind, and the game's effects.
 const YO = [0, 2, 5, 7, 9]; // D E G A B
+const PENTA = [0, 2, 4, 7, 9], MELODY = [0, -1, 2, 4, -1, 3, 2, -1, 1, -1, 4, 2, -1, 5, 3, 1];
+const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 const hz = (deg, oct = 0) => 146.83 * Math.pow(2, oct + (YO[((deg % 5) + 5) % 5] + 12 * Math.floor(deg / 5)) / 12);
 
 export class Sound {
@@ -26,6 +28,11 @@ export class Sound {
     const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200;
     d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(this.music);
     this.echo = d;
+    // a short room for the music strings
+    this.verb = c.createConvolver(); this.ks = new Map();
+    { const len = Math.floor(c.sampleRate * 2.2), ir = c.createBuffer(2, len, c.sampleRate);
+      for (let ch = 0; ch < 2; ch++) { const dd = ir.getChannelData(ch); for (let i = 0; i < len; i++) dd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+      this.verb.buffer = ir; const vg = c.createGain(); vg.gain.value = 0.28; this.verb.connect(vg); vg.connect(this.master); }
     // noise buffer
     const nb = c.createBuffer(1, c.sampleRate * 2, c.sampleRate); const ch = nb.getChannelData(0);
     for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
@@ -83,51 +90,53 @@ export class Sound {
   }
 
   // ---------- music ----------
+  // The loop from the first Maple Run: plucked strings (Karplus-Strong) on a major pentatonic over a light drum
+  // pattern, 132 bpm, a fixed 16-step figure that walks a four-bar chord cycle. Fixed on purpose: a generated
+  // melody with a moving tempo read as noise.
+  _ksBuffer(freq) {
+    const key = Math.round(freq); if (this.ks.has(key)) return this.ks.get(key);
+    const c = this.ctx, sr = c.sampleRate, len = Math.floor(sr * 1.8), buf = c.createBuffer(1, len, sr), d = buf.getChannelData(0);
+    const N = Math.round(sr / freq), ring = new Float32Array(N); for (let i = 0; i < N; i++) ring[i] = Math.random() * 2 - 1;
+    let p = 0; for (let i = 0; i < len; i++) { const nx = (p + 1) % N, v = (ring[p] + ring[nx]) * 0.5 * 0.994; d[i] = ring[p]; ring[p] = v; p = nx; }
+    this.ks.set(key, buf); return buf;
+  }
+  _string(freq, t, vel) {
+    const c = this.ctx, src = c.createBufferSource(); src.buffer = this._ksBuffer(freq);
+    const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 3200;
+    const g = c.createGain(); g.gain.value = vel; src.connect(f); f.connect(g); g.connect(this.music); g.connect(this.verb); src.start(t);
+  }
+  _beat(t, f0, f1, dur, vel, noise = 0) {
+    const c = this.ctx;
+    if (vel > 0) {
+      const o = c.createOscillator(), g = c.createGain();
+      o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.8);
+      g.gain.setValueAtTime(vel, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g); g.connect(this.music); o.start(t); o.stop(t + dur + 0.05);
+    }
+    if (noise) this.hiss(t, 0.06, noise, 6000, this.music);
+  }
   startMusic() {
     if (!this.ctx) return;
-    this.playing = true; this.step = 0; this.nextT = this.ctx.currentTime + 0.08;
-    this.music.gain.setTargetAtTime(0.5, this.ctx.currentTime, 0.4);
-    this.motif = this._motif();
+    this.playing = true; this.step = 0; this.nextT = this.ctx.currentTime + 0.1;
+    this.music.gain.setTargetAtTime(0.55, this.ctx.currentTime, 0.5);
   }
   stopMusic(fade = 0.5) { this.playing = false; if (this.ctx) this.music.gain.setTargetAtTime(0.0, this.ctx.currentTime, fade); }
   duck(k) { if (this.ctx) this.music.gain.setTargetAtTime(k, this.ctx.currentTime, 0.2); }
 
-  _motif() {
-    // 16 steps of scale degrees (null = rest), built as a random walk that leans back to the tonic
-    const m = []; let d = 5 + Math.floor(this._rand() * 4);
-    for (let i = 0; i < 16; i++) {
-      if (i % 4 !== 0 && this._rand() < 0.3) { m.push(null); continue; }
-      d += Math.floor(this._rand() * 5) - 2; d = Math.max(3, Math.min(12, d));
-      m.push(d);
-    }
-    m[0] = 5; m[15] = this._rand() < 0.5 ? 7 : 5;
-    return m;
-  }
-
-  /** Call every frame. speed01: 0..1 game pace. */
-  tick(speed01 = 0) {
+  /** Call every frame. */
+  tick() {
     const c = this.ctx; if (!c || !this.playing) return;
-    this.tempo = 112 + speed01 * 40;
-    const spb = 60 / this.tempo / 4; // 16th
+    const spb = 60 / 132 / 4; // a 16th
     if (this.nextT < c.currentTime - 0.2) this.nextT = c.currentTime + 0.05; // after a pause or a hidden tab: skip, don't catch up
-    while (this.nextT < c.currentTime + 0.12) {
-      const t = this.nextT, s = this.step, bar = Math.floor(s / 16), i = s % 16;
-      if (i === 0 && bar % 4 === 0 && bar > 0) this.motif = this._motif();
-      // taiko: steady drive with a syncopated answer
-      if (i % 8 === 0) this.drum(t, 92, 0.62, 0.3);
-      if (i === 6 || i === 11 || (i === 14 && bar % 2)) this.drum(t, 150, 0.32, 0.14);
-      if (i % 4 === 2) this.hiss(t, 0.035, 0.07, 7000, this.music);
-      if (i % 2 === 1 && bar % 4 >= 2) this.hiss(t, 0.02, 0.035, 9000, this.music);
-      // bass on the tonic / fifth
-      if (i % 8 === 0 || i === 10) {
-        const root = [0, 0, 3, 2][bar % 4];
-        this.pluck(hz(root, -1), t, 0.22, 0.5);
-      }
-      const n = this.motif[i];
-      if (n != null && bar >= 1) {
-        this.pluck(hz(n, bar % 8 >= 4 ? 1 : 0), t, 0.13, 0.55);
-        if (i % 8 === 0 && bar % 2) this.pluck(hz(n + 2, 0), t + spb * 0.5, 0.06, 0.4);
-      }
+    while (this.nextT < c.currentTime + 0.2) {
+      const t = this.nextT, i = this.step % 16, bar = Math.floor(this.step / 16) % 4;
+      if (i === 0 || i === 6 || i === 10) this._beat(t, 140, 50, 0.25, 0.5);
+      if (i === 4 || i === 12) this._beat(t, 320, 180, 0.12, 0.22, 0.08);
+      if (i % 2 === 1) this._beat(t, 0, 0, 0, 0, 0.035);
+      const root = [62, 57, 59, 55][bar];
+      const k = MELODY[i];
+      if (k >= 0) this._string(midi(root + 12 + PENTA[k % 5] + Math.floor(k / 5) * 12), t, 0.22 + (i % 4 === 0 ? 0.08 : 0));
+      if (i === 0 || i === 8) this._string(midi(root - 12), t, 0.35);
       this.nextT += spb; this.step++;
     }
   }

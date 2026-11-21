@@ -469,8 +469,9 @@ function frame(dtRaw) {
   if (paused) return;
   time += dt; stage.time = time;
   // characters: full sun on the paddies and the bridge, shade under the maples and beside the station
-  sunlit = damp(sunlit, sunAt(R.s), 2.2, dt);
-  stage.splatSun.intensity = lerp(0.42, 0.78, sunlit); stage.splatSky.intensity = lerp(0.3, 0.4, sunlit);
+  // (a narrow range, eased over 40 m of track: a wider or quicker change reads as the character flickering)
+  sunlit = damp(sunlit, sunAt(R.s), 1.5, dt);
+  stage.splatSun.intensity = lerp(0.5, 0.68, sunlit); stage.splatSky.intensity = lerp(0.32, 0.37, sunlit);
   let scroll = 0;
 
   if (state === 'run') {

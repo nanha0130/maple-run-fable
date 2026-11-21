@@ -31,8 +31,12 @@ export function biomeOf(k) {
 export const biomeAt = (s) => biomeOf(Math.floor(s / CHUNK));
 // How much direct sun reaches the runner on each kind of stretch (the splat characters are lit apart from the scene
 // and take no shadows from it, so their light has to follow where they are).
-const SUNLIT = { forest: 0, station: 0.15, paddy: 1, bridge: 0.75 };
-export const sunAt = (s) => (SUNLIT[biomeAt(s - 12)] + SUNLIT[biomeAt(s)] * 2 + SUNLIT[biomeAt(s + 12)]) / 4;
+const SUNLIT = { forest: 0, station: 0.2, paddy: 1, bridge: 0.7 };
+/** 0..1, continuous: each chunk's value sits at its middle and eases into the next over a whole chunk (40 m). */
+export function sunAt(s) {
+  const f = s / CHUNK - 0.5, k = Math.floor(f), t = f - k, e = t * t * (3 - 2 * t);
+  return SUNLIT[biomeOf(k)] * (1 - e) + SUNLIT[biomeOf(k + 1)] * e;
+}
 
 const PROFILES = {
   forest: [[5.4, 0], [6.6, -0.5], [9, 0.5], [14, 1.8], [24, 4], [45, 8], [120, 17]],
@@ -757,7 +761,7 @@ function planter(G, r, x, y, z, len = 1.3) {
 }
 
 /** The station house behind the left platform. Frame: floor at platform height, front (+Z local) faces the track. */
-function stationHouse(G, r, cx, PH, s, w) {
+function stationHouse(G, r, cx, PH, s, w, named = true) {
   const d = 6.4, hgt = 3.25, zf = d / 2;
   frame(G, cx, PH, -s, 90, () => {
     const wall = hex('#ece1cb');
@@ -796,8 +800,10 @@ function stationHouse(G, r, cx, PH, s, w) {
       plate(G.deco, gx + sx * 0.06, 1.7, -d * 0.24, 1.5, 1.2, DUV('glass'), sx * 90);
       plate(G.deco, gx + sx * 0.06, 1.7, d * 0.24, 1.5, 1.2, DUV('glass'), sx * 90);
       plate(G.deco, gx + sx * 0.12, hgt + rise * 0.42, 0, 0.9, 0.9, DUV('clock'), sx * 90);
-      G.wood.box(gx + sx * 0.05, 2.78, 0, 0.08, 0.84, 3.3, TIMBER_D, { uv: 1.2 });
-      plate(G.sign, gx + sx * 0.1, 2.78, 0, 3.1, 0.7, SIGN_NAME, sx * 90);
+      if (named) {
+        G.wood.box(gx + sx * 0.05, 2.78, 0, 0.08, 0.84, 3.3, TIMBER_D, { uv: 1.2 });
+        plate(G.sign, gx + sx * 0.1, 2.78, 0, 3.1, 0.7, SIGN_NAME, sx * 90);
+      }
     }
     gableRoof(G, 'tile', w, d, hgt, rise, { ov: 1.25, ovx: 0.8, th: 0.16 });
     // porch posts under the front eave
@@ -870,19 +876,19 @@ function station(G, r, k) {
       G.flat.tube([lx, RY - 0.86, -s], [lx, RY - 0.66, -s], 0.29, 0.045, 10, [0.9, 0.88, 0.8]);
       G.lamp.blob(lx, RY - 0.86, -s, 0.11, 0.13, 0.11, [1, 0.8, 0.46], 8, 5);
       // hanging name board across the platform, readable as you run in; platform number on the first frame
-      if (fi === 3) { // one name board per platform per chunk: a real platform has two or three, not one in every bay
+      if (fi === 3 && first) { // a whole station carries a handful of name boards, not one in every bay
         const hx = side * 7.75, hy = RY - 0.78;
         G.wood.box(hx, hy, -s + 0.4, 2.5, 0.72, 0.06, TIMBER_D, { uv: 1.2 });
         for (const o of [-1.05, 1.05]) G.flat.box(hx + o, hy + 0.5, -s + 0.4, 0.03, 0.34, 0.03, iron);
         plate(G.sign, hx, hy, -s + 0.44, 2.36, 0.59, SIGN_NAME);
         plate(G.sign, hx, hy, -s + 0.36, 2.36, 0.59, SIGN_NAME, 180);
-      } else if (fi === 5 && side > 0) { // way-out sign
+      } else if (fi === 5 && side > 0 && last) { // way-out sign
         const hx = side * 7.75, hy = RY - 0.7;
         G.flat.box(hx, hy, -s + 0.4, 1.4, 0.74, 0.06, iron);
         for (const o of [-0.5, 0.5]) G.flat.box(hx + o, hy + 0.5, -s + 0.4, 0.03, 0.3, 0.03, iron);
         plate(G.deco, hx, hy, -s + 0.44, 1.3, 0.65, DUV('exit'));
         plate(G.deco, hx, hy, -s + 0.36, 1.3, 0.65, DUV('exit'), 180);
-      } else if (fi === 1) {
+      } else if (fi === 1 && !last) {
         const hx = side * 5.75, hy = RY - 0.72;
         G.flat.box(hx, hy, -s + 0.4, 0.6, 0.6, 0.06, iron);
         G.flat.box(hx, hy + 0.42, -s + 0.4, 0.03, 0.26, 0.03, iron);
@@ -919,7 +925,7 @@ function station(G, r, k) {
     // name boards on their own legs facing the track, benches, planters
     let bi = 0;
     for (let s = cA + 2.5; s < cB; s += 10, bi++) {
-      if (bi === (first ? 2 : last ? 0 : 3)) { // one per chunk, well away from the hanging board
+      if (bi === 0 && last && side > 0) { // the one standing board, on the far platform of the last chunk
         const bx = side * 8.45, by = PH + 2.15, hwd = 1.5, hh = 0.42;
         G.wood.box(side * 8.56, by, -s, 0.08, hh * 2 + 0.18, hwd * 2 + 0.18, TIMBER_D, { uv: 1.2 });
         for (const o of [-hwd - 0.02, hwd + 0.02]) G.wood.box(side * 8.56, PH + 1.4, -s + o, 0.1, 2.8, 0.1, TIMBER_D, { uv: 1.2, bottom: false });
@@ -941,14 +947,14 @@ function station(G, r, k) {
     if (side > 0) G.plaster.box(side * 10.2, PH + 0.78, zc, 0.05, 0.12, len, shade(white, 0.92), { uv: 2 });
     else for (const [a, b] of [[sA, hs - hw / 2 - 0.5], [hs + hw / 2 + 0.5, sB]]) if (b > a) G.plaster.box(side * 10.2, PH + 0.78, -(a + b) / 2, 0.05, 0.12, b - a, shade(white, 0.92), { uv: 2 });
     // clock hanging under the canopy
-    {
+    if (first && side > 0) {
       const s = cA + 7.5, hx = side * 5.9, hy = RY - 0.8;
       G.flat.box(hx, hy, -s, 0.72, 0.72, 0.16, iron); G.flat.box(hx, hy + 0.5, -s, 0.04, 0.3, 0.04, iron);
       plate(G.deco, hx, hy, -s + 0.085, 0.64, 0.64, DUV('clock'));
       plate(G.deco, hx, hy, -s - 0.085, 0.64, 0.64, DUV('clock'), 180);
     }
   }
-  stationHouse(G, r, -14.75, PH, hs, hw);
+  stationHouse(G, r, -14.75, PH, hs, hw, last);
   // right platform furniture
   {
     const fz = first ? -22 : -8; // vending machines

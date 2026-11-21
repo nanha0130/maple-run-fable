@@ -28,9 +28,9 @@ export function createUI(root, h) {
           <span class="jp">${c.jp}</span>
           <span class="meta"><b>${c.name}</b><small>${c.tag}</small></span>
         </button>`).join('')}
-        <button class="card mine" data-id="mine" role="option" aria-label="Run as yourself">
+        <button class="card mine" data-id="mine" role="option" aria-label="Make your own runner">
           <span class="pic none" id="mine-pic"><svg class="plus" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="14" r="6.5"/><path d="M7.5 34c1.2-7.6 6-11.5 12.5-11.5S31.3 26.4 32.5 34z"/><path d="M31 4v9M26.5 8.5h9" stroke-linecap="round"/></svg></span>
-          <span class="meta"><b>YOU</b><small id="mine-tag">Upload a photo</small></span>
+          <span class="meta"><b>YOU</b><small id="mine-tag">Any character</small></span>
         </button>
       </div>
       <div class="go">
@@ -61,14 +61,14 @@ export function createUI(root, h) {
     <div class="stats"><div>Distance<b id="over-dist">0 m</b></div><div>Leaves<b id="over-leaves">0</b></div><div>Best<b id="over-best">0</b></div></div>
     <div class="btns"><button class="btn pri" id="retry">TRY AGAIN</button><button class="btn sec" id="menu">RUNNERS</button></div>
   </div></div>
-  <div class="veil" id="make"><div class="panel wide" role="dialog" aria-modal="true" aria-label="Run as yourself">
+  <div class="veil" id="make"><div class="panel wide" role="dialog" aria-modal="true" aria-label="Make your own runner">
     <button class="x" id="make-x" aria-label="Close"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15"/></svg></button>
     <form id="make-form" autocomplete="off">
       <label class="drop" id="make-drop"><input type="file" class="vh" id="make-file" accept="image/png,image/jpeg,image/webp">
-        <img id="make-prev" alt="" hidden><span id="make-drop-t"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><b>Add a photo</b><small>One person, full body</small></span></label>
+        <img id="make-prev" alt="" hidden><span id="make-drop-t"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><b>Add an image</b><small>One character, full body</small></span></label>
       <div class="side">
-        <h2 id="make-h">Run as yourself</h2>
-        <p class="lede">One photo becomes your 3D runner. New Viggle accounts get <b>100 free credits</b>.</p>
+        <h2 id="make-h">Run as anyone</h2>
+        <p class="lede">Any character can be your runner. One image is all it takes. New Viggle accounts get <b>100 free credits</b>.</p>
         <div class="resume" id="make-resume" hidden><b>Your runner is already paid for.</b> Enter the same key to pick it up at no extra cost. <button type="button" id="make-discard">Discard it and start over</button></div>
         <div class="field"><input type="password" id="make-key" aria-label="Viggle API key" placeholder="Viggle API key" spellcheck="false" autocomplete="off" autocapitalize="off"><a href="${pinoc.KEYS_URL}" target="_blank" rel="noopener">Get a free key</a></div>
         <div class="row"><label class="check"><input type="checkbox" id="make-keep"> Remember on this device</label><span class="bal" id="make-bal"></span></div>
@@ -80,7 +80,7 @@ export function createUI(root, h) {
     </form>
     <div id="make-busy" hidden>
       ${leafSvg}
-      <p class="stage" id="make-stage" aria-live="polite">Uploading your photo…</p>
+      <p class="stage" id="make-stage" aria-live="polite">Uploading your image…</p>
       <div class="meter"><u id="make-bar"></u></div>
       <p class="fine">Usually a few minutes. You can close this panel; it carries on in the background.</p>
     </div>
@@ -112,7 +112,7 @@ export function createUI(root, h) {
     mk.remove.textContent = 'Remove my runner'; armed = 0;
   }
   const progress = (p) => {
-    mk.stage.textContent = p.stage === 'upload' ? 'Uploading your photo…' : p.stage === 'download' ? 'Bringing your runner to the platform…' : `Building your runner… ${p.progress ? p.progress + '%' : ''}`;
+    mk.stage.textContent = p.stage === 'upload' ? 'Uploading your image…' : p.stage === 'download' ? 'Bringing your runner to the platform…' : `Building your runner… ${p.progress ? p.progress + '%' : ''}`;
     mk.bar.style.width = (p.stage === 'upload' ? 4 : Math.max(6, p.progress || 0)) + '%';
   };
   function checkBalance() {
@@ -195,7 +195,7 @@ export function createUI(root, h) {
       if (picUrl) URL.revokeObjectURL(picUrl); picUrl = pic ? URL.createObjectURL(pic) : null;
       const box = $('mine-pic');
       box.style.backgroundImage = picUrl ? `url(${picUrl})` : ''; box.classList.toggle('photo', !!picUrl); box.classList.toggle('made', hasMine);
-      $('mine-tag').textContent = hasMine ? 'Tap again to change' : 'Upload a photo';
+      $('mine-tag').textContent = hasMine ? 'Tap again to change' : 'Any character';
     },
     boot(msg) { el.bootMsg.textContent = msg; },
     bootError(msg) { el.bootMsg.className = 'err'; el.bootMsg.textContent = msg; },
